@@ -17,6 +17,8 @@ endif
 let s:cpo_save = &cpo
 set cpo&vim
 
+let b:sas_section = 0
+
 " ----------------------------------
 " Main Function
 " ----------------------------------
@@ -52,6 +54,21 @@ function GetSASIndent()
 		let ind = ind + &sts
 	endif
 
+	if pline =~ '^\s*data\>'
+	\ || pline =~ '^\s*proc\>'
+		let b:sas_section = 1
+	endif 
+
+	" ----------------------------------
+	" Location	 - Current line
+	" Matched Words  - PROC DATA
+	" ----------------------------------
+
+	if cline =~ '^\s*\(data\|proc\)\>'
+	\ && pline !~ '\(\<run;\<quit;\|\<endsas\>\|%mend\>\|%macro\>\)'
+		return ind - &sts
+	endif
+
 	" ----------------------------------
 	" Location	 - Current Line
 	" Action	 - Return to column 0
@@ -59,33 +76,30 @@ function GetSASIndent()
 	" ----------------------------------
 
 	if cline =~ '\<endsas\>'
+	\ || cline =~ '%macro\>'
 	\ || cline =~ '%mend\>'
+		let b:sas_section = 0
 		return 0
 	endif
 
 	" ----------------------------------
 	" Location	 - Current line
 	" Action	 - Substract a soft tab stop
-	" Matched Words  - END, RUN
+	" Matched Words  - END, RUN, QUIT
 	" ----------------------------------
 
 	if cline =~ '\<end;'
-	\ || cline =~ '\<run;'
+		return ind - &sts
+	endif
+
+	if (cline =~ '\<\(run\|quit\);' && b:sas_section == 1)
+		let b:sas_section = 0
 		return ind - &sts
 	endif
 
 	" ----------------------------------
-	" Location	 - Current line
-	" Matched Words  - PROC
-	" Location	 - Previous Line
-	" Does Not Match - RUN, ENDSAS, %MEND
-	" Action	 - Substract a soft tab stop
+	" Otherwise
 	" ----------------------------------
-
-	if cline =~ '^\s*proc\>'
-	\ && pline !~ '\(\<run;\|\<endsas\>\|%mend\>\)'
-		return ind - &sts
-	endif
 
 	return ind
 endfunction
